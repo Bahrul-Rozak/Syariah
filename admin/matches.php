@@ -1,6 +1,9 @@
 <?php
 include 'includes/header.php';
 
+// Get admin ID from session
+$admin_id = $_SESSION['user_id'];
+
 // Handle actions
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['create_match'])) {
@@ -38,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Get all matches
+// Get all matches - FIXED SQL QUERY
 $matches_query = "
     SELECT m.*, 
            u1.nama as user1_nama, u1.unique_id as user1_id, u1.jenis_kelamin as user1_gender,
@@ -84,7 +87,9 @@ $users_result = $conn->query($users_query);
             </div>
         </div>
     </div>
-    <?php elseif (isset($error)): ?>
+    <?php endif; ?>
+
+    <?php if (isset($error)): ?>
     <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 alert-auto-hide">
         <div class="flex">
             <div class="flex-shrink-0">
@@ -240,89 +245,90 @@ $users_result = $conn->query($users_query);
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
-                    <?php while($match = $matches_result->fetch_assoc()): 
-                        $status_color = $match['status'] == 'pending' ? 'yellow' : 
-                                      ($match['status'] == 'accepted' ? 'green' : 
-                                      ($match['status'] == 'rejected' ? 'red' : 'blue'));
-                    ?>
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 <?php echo $match['user1_gender'] == 'Laki-laki' ? 'bg-blue-100' : 'bg-pink-100'; ?> rounded-full flex items-center justify-center mr-3">
-                                    <i class="fas fa-user <?php echo $match['user1_gender'] == 'Laki-laki' ? 'text-blue-600' : 'text-pink-600'; ?>"></i>
+                    <?php if ($total_matches > 0): ?>
+                        <?php while($match = $matches_result->fetch_assoc()): 
+                            $status_color = $match['status'] == 'pending' ? 'yellow' : 
+                                          ($match['status'] == 'accepted' ? 'green' : 
+                                          ($match['status'] == 'rejected' ? 'red' : 'blue'));
+                        ?>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 <?php echo $match['user1_gender'] == 'Laki-laki' ? 'bg-blue-100' : 'bg-pink-100'; ?> rounded-full flex items-center justify-center mr-3">
+                                        <i class="fas fa-user <?php echo $match['user1_gender'] == 'Laki-laki' ? 'text-blue-600' : 'text-pink-600'; ?>"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-800"><?php echo htmlspecialchars($match['user1_nama']); ?></div>
+                                        <div class="text-sm text-gray-500">ID: <?php echo $match['user1_id']; ?></div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div class="font-medium text-gray-800"><?php echo htmlspecialchars($match['user1_nama']); ?></div>
-                                    <div class="text-sm text-gray-500">ID: <?php echo $match['user1_id']; ?></div>
+                            </td>
+                            
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 <?php echo $match['user2_gender'] == 'Laki-laki' ? 'bg-blue-100' : 'bg-pink-100'; ?> rounded-full flex items-center justify-center mr-3">
+                                        <i class="fas fa-user <?php echo $match['user2_gender'] == 'Laki-laki' ? 'text-blue-600' : 'text-pink-600'; ?>"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-800"><?php echo htmlspecialchars($match['user2_nama']); ?></div>
+                                        <div class="text-sm text-gray-500">ID: <?php echo $match['user2_id']; ?></div>
+                                    </div>
                                 </div>
-                            </div>
-                        </td>
-                        
-                        <td class="px-6 py-4">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 <?php echo $match['user2_gender'] == 'Laki-laki' ? 'bg-blue-100' : 'bg-pink-100'; ?> rounded-full flex items-center justify-center mr-3">
-                                    <i class="fas fa-user <?php echo $match['user2_gender'] == 'Laki-laki' ? 'text-blue-600' : 'text-pink-600'; ?>"></i>
-                                </div>
-                                <div>
-                                    <div class="font-medium text-gray-800"><?php echo htmlspecialchars($match['user2_nama']); ?></div>
-                                    <div class="text-sm text-gray-500">ID: <?php echo $match['user2_id']; ?></div>
-                                </div>
-                            </div>
-                        </td>
-                        
-                        <td class="px-6 py-4">
-                            <span class="px-3 py-1 text-xs rounded-full bg-<?php echo $status_color; ?>-100 text-<?php echo $status_color; ?>-800">
-                                <?php echo ucfirst($match['status']); ?>
-                            </span>
-                        </td>
-                        
-                        <td class="px-6 py-4">
-                            <?php if ($match['chat_wa_sent']): ?>
-                            <span class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-800">
-                                <i class="fab fa-whatsapp mr-1"></i>Terkirim
-                            </span>
-                            <?php else: ?>
-                            <form method="POST" action="" class="inline">
-                                <input type="hidden" name="match_id" value="<?php echo $match['id']; ?>">
-                                <input type="hidden" name="phone" value="<?php 
-                                    // Get user WhatsApp number
-                                    $phone_query = $conn->query("SELECT no_wa FROM users WHERE id = {$match['user_id']}");
-                                    $phone_data = $phone_query->fetch_assoc();
-                                    echo $phone_data['no_wa'];
-                                ?>">
-                                <button type="submit" 
-                                        name="send_whatsapp"
-                                        class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
-                                    <i class="fab fa-whatsapp mr-1"></i>Kirim WA
-                                </button>
-                            </form>
-                            <?php endif; ?>
-                        </td>
-                        
-                        <td class="px-6 py-4 text-sm text-gray-600">
-                            <?php echo date('d/m/Y', strtotime($match['created_at'])); ?>
-                        </td>
-                        
-                        <td class="px-6 py-4">
-                            <div class="flex space-x-2">
-                                <a href="match-detail.php?id=<?php echo $match['id']; ?>" 
-                                   class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200">
-                                   <i class="fas fa-eye"></i>
-                                </a>
-                                <form method="POST" action="" class="delete-form">
+                            </td>
+                            
+                            <td class="px-6 py-4">
+                                <span class="px-3 py-1 text-xs rounded-full bg-<?php echo $status_color; ?>-100 text-<?php echo $status_color; ?>-800">
+                                    <?php echo ucfirst($match['status']); ?>
+                                </span>
+                            </td>
+                            
+                            <td class="px-6 py-4">
+                                <?php if ($match['chat_wa_sent']): ?>
+                                <span class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                                    <i class="fab fa-whatsapp mr-1"></i>Terkirim
+                                </span>
+                                <?php else: ?>
+                                <?php
+                                // Get user WhatsApp number
+                                $phone_query = $conn->query("SELECT no_wa FROM users WHERE id = {$match['user_id']}");
+                                $phone_data = $phone_query->fetch_assoc();
+                                $phone_number = $phone_data['no_wa'] ?? '';
+                                ?>
+                                <form method="POST" action="" class="inline">
                                     <input type="hidden" name="match_id" value="<?php echo $match['id']; ?>">
+                                    <input type="hidden" name="phone" value="<?php echo $phone_number; ?>">
                                     <button type="submit" 
-                                            name="delete_match"
-                                            class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">
-                                        <i class="fas fa-trash"></i>
+                                            name="send_whatsapp"
+                                            class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 hover:bg-yellow-200">
+                                        <i class="fab fa-whatsapp mr-1"></i>Kirim WA
                                     </button>
                                 </form>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php endwhile; ?>
-                    
-                    <?php if ($total_matches == 0): ?>
+                                <?php endif; ?>
+                            </td>
+                            
+                            <td class="px-6 py-4 text-sm text-gray-600">
+                                <?php echo date('d/m/Y', strtotime($match['created_at'])); ?>
+                            </td>
+                            
+                            <td class="px-6 py-4">
+                                <div class="flex space-x-2">
+                                    <a href="match-detail.php?id=<?php echo $match['id']; ?>" 
+                                       class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200">
+                                       <i class="fas fa-eye"></i>
+                                    </a>
+                                    <form method="POST" action="" class="delete-form">
+                                        <input type="hidden" name="match_id" value="<?php echo $match['id']; ?>">
+                                        <button type="submit" 
+                                                name="delete_match"
+                                                class="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
                     <tr>
                         <td colspan="6" class="px-6 py-12 text-center text-gray-500">
                             <i class="fas fa-heart text-3xl mb-3 text-gray-300"></i>
@@ -347,12 +353,12 @@ const validationMessage = document.getElementById('validationMessage');
 function showUserPreview(select, preview, nameField, genderField, locationField, professionField) {
     const selectedOption = select.options[select.selectedIndex];
     
-    if (selectedOption.value) {
+    if (selectedOption && selectedOption.value) {
         preview.classList.remove('hidden');
         nameField.textContent = selectedOption.text.split(' (')[0];
         genderField.textContent = selectedOption.getAttribute('data-gender');
-        locationField.textContent = 'Domisili: ' + selectedOption.getAttribute('data-location');
-        professionField.textContent = 'Profesi: ' + selectedOption.getAttribute('data-profession');
+        locationField.textContent = 'Domisili: ' + (selectedOption.getAttribute('data-location') || '-');
+        professionField.textContent = 'Profesi: ' + (selectedOption.getAttribute('data-profession') || '-');
     } else {
         preview.classList.add('hidden');
     }
